@@ -198,6 +198,10 @@ pip install -r requirements.txt
 - **Authentication and Security**: Implement user authentication to secure access and maintain privacy of uploaded signatures.
 
 ### output
+####Genuine
+<img width="934" alt="image" src="https://github.com/user-attachments/assets/fcce3c5d-6505-450d-b3f7-9da4a981996d" />
+
+####forged
 
 
 ## Conclusion
