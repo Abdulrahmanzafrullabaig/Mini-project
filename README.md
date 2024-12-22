@@ -1,4 +1,5 @@
-
+<img width="950" alt="image" src="https://github.com/user-attachments/assets/16c68c8a-9a4f-4a2f-a8fd-49a530bff438" />
+--
 
 # Signature Verification Model Using ResNet18 and Siamese Network
 
