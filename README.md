@@ -202,6 +202,7 @@ pip install -r requirements.txt
 <img width="934" alt="image" src="https://github.com/user-attachments/assets/fcce3c5d-6505-450d-b3f7-9da4a981996d" />
 
 ####forged
+<img width="940" alt="image" src="https://github.com/user-attachments/assets/d32bd4b5-18f6-46a1-b8d8-96df5d9fcbc5" />
 
 
 ## Conclusion
