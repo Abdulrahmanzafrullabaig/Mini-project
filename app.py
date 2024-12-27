@@ -8,8 +8,22 @@ import os
 
 app = Flask(__name__)
 
-# Initialize model
-model = load_model()
+# Get port from environment variable
+port = int(os.environ.get("PORT", 5000))
+
+# Global model variable
+global model
+
+# Initialize model with detailed error handling
+print("Starting model initialization...")
+try:
+    model = load_model()
+    if model is None:
+        raise Exception("Model loading returned None")
+    print("Model initialized successfully!")
+except Exception as e:
+    print(f"Error initializing model: {str(e)}")
+    raise
 
 @app.route('/')
 def home():
@@ -19,16 +33,22 @@ def home():
 def predict():
     try:
         # Get images from request
+        if 'reference_image' not in request.files or 'verification_image' not in request.files:
+            return jsonify({'error': 'Both images are required'}), 400
+            
         ref_image = request.files['reference_image']
         ver_image = request.files['verification_image']
         
         # Read images
-        ref_img = Image.open(io.BytesIO(ref_image.read())).convert('RGB')
-        ver_img = Image.open(io.BytesIO(ver_image.read())).convert('RGB')
+        try:
+            ref_img = Image.open(io.BytesIO(ref_image.read())).convert('RGB')
+            ver_img = Image.open(io.BytesIO(ver_image.read())).convert('RGB')
+        except Exception as e:
+            return jsonify({'error': 'Invalid image format'}), 400
         
         # Check if images contain signatures
         if np.sum(np.array(ref_img) < 240) < 1000 or np.sum(np.array(ver_img) < 240) < 1000:
-            return jsonify({'error': 'One or both images do not contain a signature'})
+            return jsonify({'error': 'One or both images do not contain a signature'}), 400
         
         # Preprocess images
         ref_tensor = preprocess_image(ref_img)
@@ -46,7 +66,8 @@ def predict():
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)})
+        print(f"Error during prediction: {str(e)}")
+        return jsonify({'error': 'An error occurred during processing'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=port)
