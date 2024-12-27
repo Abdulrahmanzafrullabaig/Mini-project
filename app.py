@@ -1,19 +1,15 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, render_template, jsonify
+import torch
+from PIL import Image
+import io
+import numpy as np
+from main import preprocess_image, load_model, make_prediction
 import os
-from main import predict_signatures
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
-# Ensure upload directory exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+# Initialize model
+model = load_model()
 
 @app.route('/')
 def home():
@@ -21,43 +17,36 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if 'image1' not in request.files or 'image2' not in request.files:
-        return jsonify({'error': 'Both images are required'}), 400
-    
-    image1 = request.files['image1']
-    image2 = request.files['image2']
-    
-    if image1.filename == '' or image2.filename == '':
-        return jsonify({'error': 'No selected files'}), 400
-    
-    if not (allowed_file(image1.filename) and allowed_file(image2.filename)):
-        return jsonify({'error': 'Invalid file type'}), 400
-    
     try:
-        # Save images
-        filename1 = secure_filename(image1.filename)
-        filename2 = secure_filename(image2.filename)
+        # Get images from request
+        ref_image = request.files['reference_image']
+        ver_image = request.files['verification_image']
         
-        filepath1 = os.path.join(app.config['UPLOAD_FOLDER'], filename1)
-        filepath2 = os.path.join(app.config['UPLOAD_FOLDER'], filename2)
+        # Read images
+        ref_img = Image.open(io.BytesIO(ref_image.read())).convert('RGB')
+        ver_img = Image.open(io.BytesIO(ver_image.read())).convert('RGB')
         
-        image1.save(filepath1)
-        image2.save(filepath2)
+        # Check if images contain signatures
+        if np.sum(np.array(ref_img) < 240) < 1000 or np.sum(np.array(ver_img) < 240) < 1000:
+            return jsonify({'error': 'One or both images do not contain a signature'})
         
-        # Get prediction
-        prediction, confidence = predict_signatures(filepath1, filepath2)
+        # Preprocess images
+        ref_tensor = preprocess_image(ref_img)
+        ver_tensor = preprocess_image(ver_img)
         
-        # Clean up uploaded files
-        os.remove(filepath1)
-        os.remove(filepath2)
+        # Make prediction
+        prediction = make_prediction(model, ref_tensor, ver_tensor)
+        
+        result = "Genuine" if prediction > 0.5 else "Forged"
+        confidence = float(prediction)
         
         return jsonify({
-            'prediction': 'Genuine' if prediction else 'Forged',
-            'confidence': float(confidence)
+            'result': result,
+            'confidence': f"{confidence:.2%}"
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)
