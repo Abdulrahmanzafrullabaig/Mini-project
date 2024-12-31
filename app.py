@@ -1,4 +1,4 @@
-###app.py
+
 from flask import Flask, request, render_template, jsonify
 import torch
 from PIL import Image
