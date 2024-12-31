@@ -8,8 +8,7 @@ import os
 class SiameseNetwork(nn.Module):
     def __init__(self):
         super(SiameseNetwork, self).__init__()
-        # Initialize with default weights to avoid pretrained model download issues
-        self.cnn = models.resnet50(weights=None)
+        self.cnn = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1)
         self.cnn.fc = nn.Linear(self.cnn.fc.in_features, 256)
         
         self.fc1 = nn.Sequential(
@@ -27,47 +26,19 @@ class SiameseNetwork(nn.Module):
         return output
 
 def load_model():
-    print("Starting model loading process...")
-    try:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Using device: {device}")
-        
-        # Initialize model
-        model = SiameseNetwork()
-        print("Model architecture initialized")
-        
-        # Get absolute path to the model file
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        model_path = os.path.join(base_dir, 'final_model.pth')
-        print(f"Looking for model file at: {model_path}")
-        
-        if not os.path.exists(model_path):
-            raise FileNotFoundError(f"Model file not found at {model_path}")
-            
-        # Load state dict with detailed error handling
-        try:
-            state_dict = torch.load(model_path, map_location=device)
-            print("Model state dict loaded successfully")
-        except Exception as e:
-            raise Exception(f"Error loading state dict: {str(e)}")
-            
-        # Load state dict into model
-        try:
-            model.load_state_dict(state_dict)
-            print("State dict loaded into model successfully")
-        except Exception as e:
-            raise Exception(f"Error loading state dict into model: {str(e)}")
-            
-        # Move model to device and set to eval mode
-        model = model.to(device)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = SiameseNetwork().to(device)
+    
+    # Update model path to work with Render's file system
+    model_path = os.path.join(os.path.dirname(__file__), 'final_model.pth')
+    
+    if os.path.exists(model_path):
+        model.load_state_dict(torch.load(model_path, map_location=device))
         model.eval()
-        print("Model successfully moved to device and set to eval mode")
-        
-        return model
-        
-    except Exception as e:
-        print(f"Error in load_model: {str(e)}")
-        raise
+    else:
+        raise FileNotFoundError(f"Model file not found at {model_path}")
+    
+    return model
 
 def preprocess_image(image):
     transform = transforms.Compose([
@@ -82,7 +53,7 @@ def preprocess_image(image):
     return transform(image).unsqueeze(0)
 
 def make_prediction(model, img1, img2):
-    device = next(model.parameters()).device  # Get the device model is on
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     img1 = img1.to(device)
     img2 = img2.to(device)
     
